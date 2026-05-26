@@ -261,6 +261,9 @@ export async function updateForecastConfig(formData: FormData) {
   const holtWintersSeasonLength = asInt(formData, "holtWintersSeasonLength");
   const holtWintersMinRequiredMonths = asInt(formData, "holtWintersMinRequiredMonths");
 
+  const holtWintersTrendType = asString(formData, "holtWintersTrendType");
+  const holtWintersSeasonalType = asString(formData, "holtWintersSeasonalType");
+
   if (
     movingAverageN < 1 ||
     forecastHorizonMonths < 1 ||
@@ -268,7 +271,9 @@ export async function updateForecastConfig(formData: FormData) {
     !Number.isFinite(maxMonthlyGrowthRate) ||
     maxMonthlyGrowthRate < 0 ||
     holtWintersSeasonLength < 2 ||
-    holtWintersMinRequiredMonths < holtWintersSeasonLength
+    holtWintersMinRequiredMonths < holtWintersSeasonLength ||
+    !["additive", "multiplicative"].includes(holtWintersTrendType) ||
+    !["additive", "multiplicative"].includes(holtWintersSeasonalType)
   ) {
     fail("/configuracion", "Revisá los parámetros del forecast.");
   }
@@ -281,8 +286,8 @@ export async function updateForecastConfig(formData: FormData) {
       polynomialDegree,
       maxMonthlyGrowthRate,
       holtWintersSeasonLength,
-      holtWintersTrendType: "additive",
-      holtWintersSeasonalType: "multiplicative",
+      holtWintersTrendType,
+      holtWintersSeasonalType,
       holtWintersMinRequiredMonths,
     },
     create: {
@@ -292,13 +297,14 @@ export async function updateForecastConfig(formData: FormData) {
       polynomialDegree,
       maxMonthlyGrowthRate,
       holtWintersSeasonLength,
-      holtWintersTrendType: "additive",
-      holtWintersSeasonalType: "multiplicative",
+      holtWintersTrendType,
+      holtWintersSeasonalType,
       holtWintersMinRequiredMonths,
     },
   });
 
   revalidatePath("/configuracion");
   revalidatePath("/reporte");
+  revalidatePath("/matriz-forecast");
   redirect("/configuracion");
 }
