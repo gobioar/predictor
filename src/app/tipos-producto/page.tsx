@@ -2,6 +2,7 @@ import { Plus, Save, Trash2 } from "lucide-react";
 import { Alert } from "@/components/Alert";
 import { EmptyState } from "@/components/EmptyState";
 import { createTipo, deleteTipo, updateTipo } from "@/app/actions";
+import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export default async function TiposProductoPage({
@@ -9,6 +10,8 @@ export default async function TiposProductoPage({
 }: {
   searchParams?: Promise<{ error?: string }>;
 }) {
+  await requireAuth();
+
   const params = await searchParams;
   const tipos = await prisma.tipoProductoVenta.findMany({
     orderBy: { nombre: "asc" },

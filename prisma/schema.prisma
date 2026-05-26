@@ -7,6 +7,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum ForecastModel {
+  movingAverage
+  linear
+  polynomial
+  holtWinters
+}
+
 model FamiliaProducto {
   id        Int        @id @default(autoincrement())
   nombre    String     @unique
@@ -24,17 +41,19 @@ model TipoProductoVenta {
 }
 
 model Producto {
-  id                  Int                @id @default(autoincrement())
-  sku                 String             @unique
-  nombre              String
-  familiaId           Int
-  tipoProductoVentaId Int
-  activo              Boolean            @default(true)
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-  familia             FamiliaProducto    @relation(fields: [familiaId], references: [id], onDelete: Restrict)
-  tipoProductoVenta   TipoProductoVenta  @relation(fields: [tipoProductoVentaId], references: [id], onDelete: Restrict)
-  ventaMensualItems   VentaMensualItem[]
+  id                     Int                @id @default(autoincrement())
+  sku                    String             @unique
+  nombre                 String
+  familiaId              Int
+  tipoProductoVentaId    Int
+  tipoProduccion         String             @default("Propio")
+  preferredForecastModel ForecastModel?
+  activo                 Boolean            @default(true)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  familia                FamiliaProducto    @relation(fields: [familiaId], references: [id], onDelete: Restrict)
+  tipoProductoVenta      TipoProductoVenta  @relation(fields: [tipoProductoVentaId], references: [id], onDelete: Restrict)
+  ventaMensualItems      VentaMensualItem[]
 }
 
 model VentaMensualPeriodo {

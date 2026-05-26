@@ -1,6 +1,7 @@
 import { Save } from "lucide-react";
 import { updateForecastConfig } from "@/app/actions";
 import { Alert } from "@/components/Alert";
+import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export default async function ConfiguracionPage({
@@ -8,6 +9,8 @@ export default async function ConfiguracionPage({
 }: {
   searchParams?: Promise<{ error?: string }>;
 }) {
+  await requireAuth();
+
   const params = await searchParams;
 
   const config = await prisma.forecastConfig.upsert({

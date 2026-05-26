@@ -4,7 +4,10 @@ import { Filter, Plus, Save, Trash2, X } from "lucide-react";
 import { Alert } from "@/components/Alert";
 import { EmptyState } from "@/components/EmptyState";
 import { createProducto, deleteProducto, updateProducto } from "@/app/actions";
+import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+const tiposProduccion = ["Propio", "Externo"] as const;
 
 export default async function ProductosPage({
   searchParams,
@@ -15,15 +18,19 @@ export default async function ProductosPage({
     nombre?: string;
     familiaId?: string;
     tipoProductoVentaId?: string;
+    tipoProduccion?: string;
     activo?: string;
   }>;
 }) {
+  await requireAuth();
+
   const params = await searchParams;
   const filters = {
     sku: params?.sku?.trim() ?? "",
     nombre: params?.nombre?.trim() ?? "",
     familiaId: params?.familiaId ?? "",
     tipoProductoVentaId: params?.tipoProductoVentaId ?? "",
+    tipoProduccion: params?.tipoProduccion ?? "all",
     activo: params?.activo ?? "all",
   };
   const where: Prisma.ProductoWhereInput = {
@@ -32,6 +39,9 @@ export default async function ProductosPage({
     ...(filters.familiaId ? { familiaId: Number(filters.familiaId) } : {}),
     ...(filters.tipoProductoVentaId
       ? { tipoProductoVentaId: Number(filters.tipoProductoVentaId) }
+      : {}),
+    ...(tiposProduccion.includes(filters.tipoProduccion as (typeof tiposProduccion)[number])
+      ? { tipoProduccion: filters.tipoProduccion }
       : {}),
     ...(filters.activo === "true" ? { activo: true } : {}),
     ...(filters.activo === "false" ? { activo: false } : {}),
@@ -56,6 +66,7 @@ export default async function ProductosPage({
     Boolean(filters.nombre) ||
     Boolean(filters.familiaId) ||
     Boolean(filters.tipoProductoVentaId) ||
+    filters.tipoProduccion !== "all" ||
     filters.activo !== "all";
   const currentSearchParams = new URLSearchParams();
 
@@ -64,6 +75,9 @@ export default async function ProductosPage({
   if (filters.familiaId) currentSearchParams.set("familiaId", filters.familiaId);
   if (filters.tipoProductoVentaId) {
     currentSearchParams.set("tipoProductoVentaId", filters.tipoProductoVentaId);
+  }
+  if (filters.tipoProduccion !== "all") {
+    currentSearchParams.set("tipoProduccion", filters.tipoProduccion);
   }
   if (filters.activo !== "all") currentSearchParams.set("activo", filters.activo);
 
@@ -81,7 +95,7 @@ export default async function ProductosPage({
       </header>
       <Alert message={params?.error} />
 
-      <form className="grid gap-3 rounded-lg border border-white/10 bg-neutral-900/75 p-4 lg:grid-cols-[1fr_1.5fr_1.2fr_1.4fr_1fr_auto_auto]">
+      <form className="grid gap-3 rounded-lg border border-white/10 bg-neutral-900/75 p-4 lg:grid-cols-[1fr_1.5fr_1.2fr_1.4fr_1fr_1fr_auto_auto]">
         <input
           name="sku"
           placeholder="Filtrar SKU"
@@ -127,6 +141,18 @@ export default async function ProductosPage({
           <option value="true">Activos</option>
           <option value="false">Inactivos</option>
         </select>
+        <select
+          name="tipoProduccion"
+          defaultValue={filters.tipoProduccion}
+          className="min-h-11 rounded-md border border-white/10 bg-neutral-950 px-3 text-sm text-white"
+        >
+          <option value="all">Todos los orígenes</option>
+          {tiposProduccion.map((tipoProduccion) => (
+            <option key={tipoProduccion} value={tipoProduccion}>
+              {tipoProduccion}
+            </option>
+          ))}
+        </select>
         <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-white/10 px-4 text-sm font-semibold text-white hover:bg-white/10">
           <Filter size={17} />
           Filtrar
@@ -142,7 +168,7 @@ export default async function ProductosPage({
 
       <form
         action={createProducto}
-        className="grid gap-3 rounded-lg border border-white/10 bg-neutral-900/75 p-4 lg:grid-cols-[1fr_2fr_1.4fr_1.4fr_auto_auto]"
+        className="grid gap-3 rounded-lg border border-white/10 bg-neutral-900/75 p-4 lg:grid-cols-[1fr_2fr_1.4fr_1.4fr_1fr_auto_auto]"
       >
         <input
           name="sku"
@@ -177,6 +203,18 @@ export default async function ProductosPage({
           {tipos.map((tipo) => (
             <option key={tipo.id} value={tipo.id}>
               {tipo.nombre}
+            </option>
+          ))}
+        </select>
+        <select
+          name="tipoProduccion"
+          defaultValue="Propio"
+          className="min-h-11 rounded-md border border-white/10 bg-neutral-950 px-3 text-sm text-white"
+          required
+        >
+          {tiposProduccion.map((tipoProduccion) => (
+            <option key={tipoProduccion} value={tipoProduccion}>
+              {tipoProduccion}
             </option>
           ))}
         </select>
@@ -215,13 +253,14 @@ export default async function ProductosPage({
         />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-white/10 bg-neutral-900/75">
-          <table className="w-full min-w-[900px] text-left text-sm">
+          <table className="w-full min-w-[1040px] text-left text-sm">
             <thead className="bg-white/[0.04] text-xs uppercase tracking-wide text-neutral-400">
               <tr>
                 <th className="px-4 py-3">SKU</th>
                 <th className="px-4 py-3">Nombre</th>
                 <th className="px-4 py-3">Familia</th>
                 <th className="px-4 py-3">Tipo</th>
+                <th className="px-4 py-3">Origen</th>
                 <th className="px-4 py-3">Activo</th>
                 <th className="px-4 py-3 text-right">Acciones</th>
               </tr>
@@ -263,6 +302,20 @@ export default async function ProductosPage({
                       {familias.map((familia) => (
                         <option key={familia.id} value={familia.id}>
                           {familia.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      form={`update-producto-${producto.id}`}
+                      name="tipoProduccion"
+                      defaultValue={producto.tipoProduccion}
+                      className="min-h-10 w-full rounded-md border border-white/10 bg-neutral-950 px-3 text-white"
+                    >
+                      {tiposProduccion.map((tipoProduccion) => (
+                        <option key={tipoProduccion} value={tipoProduccion}>
+                          {tipoProduccion}
                         </option>
                       ))}
                     </select>

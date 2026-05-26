@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { VentaPeriodoForm } from "@/app/ventas/VentaPeriodoForm";
+import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export default async function NuevoVentaPeriodoPage({
@@ -7,6 +8,8 @@ export default async function NuevoVentaPeriodoPage({
 }: {
   searchParams?: Promise<{ error?: string; duplicar?: string }>;
 }) {
+  await requireAuth();
+
   const params = await searchParams;
   const currentYear = new Date().getFullYear();
   const [productos, source] = await Promise.all([

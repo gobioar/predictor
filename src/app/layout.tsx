@@ -1,40 +1,33 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { Sidebar } from "@/components/Sidebar";
+import { Montserrat } from "next/font/google";
+import { AppShell } from "@/components/AppShell";
+import { getCurrentUser } from "@/lib/auth";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const montserrat = Montserrat({
+  variable: "--font-montserrat",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Predictor Demand SaaS",
-  description: "Forecast estadístico de demanda de productos de venta.",
+  title: "GoBio Predictor",
+  description: "Forecast estadístico de demanda para productos GoBio.",
 };
 
-export default function RootLayout({
+export const dynamic = "force-dynamic";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const user = await getCurrentUser();
+
   return (
-    <html
-      lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="es" className={`${montserrat.variable} h-full antialiased`}>
       <body className="min-h-full bg-neutral-950 text-neutral-100">
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <main className="min-w-0 flex-1 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.10),transparent_32rem),linear-gradient(180deg,#111111,#080808)]">
-            <div className="mx-auto w-full max-w-7xl px-6 py-7">{children}</div>
-          </main>
-        </div>
+        <AppShell user={user}>{children}</AppShell>
       </body>
     </html>
   );

@@ -1,3 +1,4 @@
+import type { ForecastModel } from "@prisma/client";
 import {
   calculateHoltWintersForecast,
   calculateLinearRegressionForecast,
@@ -13,6 +14,15 @@ export type ForecastMethod =
   | "polynomial"
   | "holtWinters"
   | "recommended";
+
+export type ForecastModelKey = ForecastModel;
+
+export const forecastModelKeys: ForecastModelKey[] = [
+  "movingAverage",
+  "linear",
+  "polynomial",
+  "holtWinters",
+];
 
 export const forecastMethodLabels: Record<ForecastMethod, string> = {
   movingAverage: "Moving Average",
@@ -30,10 +40,8 @@ export type ForecastConfigForModels = {
   holtWintersSeasonLength: number;
   holtWintersMinRequiredMonths: number;
   holtWintersTrendType: string;
-holtWintersSeasonalType: string;
+  holtWintersSeasonalType: string;
 };
-
-export type ForecastModelKey = Exclude<ForecastMethod, "recommended">;
 
 export type ProductForecastModels = Record<ForecastModelKey, ModelResult>;
 
@@ -54,29 +62,22 @@ export function calculateProductForecastModels(
   const horizon = config.forecastHorizonMonths || 12;
 
   return {
-    movingAverage: calculateMovingAverage(
-      values,
-      horizon,
-      config.movingAverageN,
-    ),
-
+    movingAverage: calculateMovingAverage(values, horizon, config.movingAverageN),
     linear: calculateLinearRegressionForecast(values, horizon),
-
     polynomial: calculatePolynomialRegressionForecast(
       values,
       horizon,
       config.polynomialDegree as 2 | 3,
       config.maxMonthlyGrowthRate,
     ),
-
     holtWinters: calculateHoltWintersForecast(
-  values,
-  horizon,
-  config.holtWintersSeasonLength,
-  config.holtWintersMinRequiredMonths,
-  config.holtWintersTrendType === "multiplicative" ? "multiplicative" : "additive",
-  config.holtWintersSeasonalType === "multiplicative" ? "multiplicative" : "additive",
-),
+      values,
+      horizon,
+      config.holtWintersSeasonLength,
+      config.holtWintersMinRequiredMonths,
+      config.holtWintersTrendType === "multiplicative" ? "multiplicative" : "additive",
+      config.holtWintersSeasonalType === "multiplicative" ? "multiplicative" : "additive",
+    ),
   };
 }
 
@@ -89,18 +90,41 @@ export function getRecommendedForecastModel(models: ProductForecastModels) {
   }) as ForecastModelKey | null;
 }
 
+export function resolveForecastModel(
+  models: ProductForecastModels | null,
+  preferredModel?: ForecastModelKey | null,
+) {
+  if (!models) {
+    return {
+      automaticModelKey: null as ForecastModelKey | null,
+      usedModelKey: null as ForecastModelKey | null,
+      isManual: false,
+    };
+  }
+
+  const automaticModelKey = getRecommendedForecastModel(models);
+  const usedModelKey = preferredModel ?? automaticModelKey;
+
+  return {
+    automaticModelKey,
+    usedModelKey,
+    isManual: Boolean(preferredModel),
+  };
+}
+
 export function getForecastForMethod(
   models: ProductForecastModels | null,
   method: ForecastMethod,
+  preferredModel?: ForecastModelKey | null,
 ) {
   if (!models) return { forecast: [], modelKey: null as ForecastModelKey | null };
 
   if (method === "recommended") {
-    const modelKey = getRecommendedForecastModel(models);
+    const { usedModelKey } = resolveForecastModel(models, preferredModel);
 
     return {
-      forecast: modelKey ? models[modelKey].forecast : [],
-      modelKey,
+      forecast: usedModelKey ? models[usedModelKey].forecast : [],
+      modelKey: usedModelKey,
     };
   }
 

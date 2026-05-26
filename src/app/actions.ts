@@ -3,6 +3,13 @@
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import {
+  createSession,
+  logout,
+  requireAuth,
+  verifyPassword,
+} from "@/lib/auth";
+import { forecastModelKeys, type ForecastModelKey } from "@/lib/forecast-report";
 import { prisma } from "@/lib/prisma";
 
 const asString = (formData: FormData, key: string) =>
@@ -13,7 +20,16 @@ const asInt = (formData: FormData, key: string) => {
   return Number.isFinite(value) ? Math.trunc(value) : NaN;
 };
 
-const fail = (path: string, message: string) => {
+const tiposProduccion = ["Propio", "Externo"] as const;
+
+const asTipoProduccion = (formData: FormData) => {
+  const value = asString(formData, "tipoProduccion");
+  return tiposProduccion.includes(value as (typeof tiposProduccion)[number])
+    ? value
+    : "Propio";
+};
+
+const fail = (path: string, message: string): never => {
   const separator = path.includes("?") ? "&" : "?";
   redirect(`${path}${separator}error=${encodeURIComponent(message)}`);
 };
@@ -27,6 +43,8 @@ const prismaMessage = (error: unknown, fallback: string) => {
 };
 
 export async function createFamilia(formData: FormData) {
+  await requireAuth();
+
   const nombre = asString(formData, "nombre");
   if (nombre.length < 2) fail("/familias", "El nombre debe tener al menos 2 caracteres.");
 
@@ -41,6 +59,8 @@ export async function createFamilia(formData: FormData) {
 }
 
 export async function updateFamilia(formData: FormData) {
+  await requireAuth();
+
   const id = asInt(formData, "id");
   const nombre = asString(formData, "nombre");
   if (!id || nombre.length < 2) fail("/familias", "Revisá el nombre de la familia.");
@@ -56,6 +76,8 @@ export async function updateFamilia(formData: FormData) {
 }
 
 export async function deleteFamilia(formData: FormData) {
+  await requireAuth();
+
   const id = asInt(formData, "id");
   try {
     await prisma.familiaProducto.delete({ where: { id } });
@@ -68,6 +90,8 @@ export async function deleteFamilia(formData: FormData) {
 }
 
 export async function createTipo(formData: FormData) {
+  await requireAuth();
+
   const nombre = asString(formData, "nombre");
   if (nombre.length < 2) fail("/tipos-producto", "El nombre debe tener al menos 2 caracteres.");
 
@@ -82,6 +106,8 @@ export async function createTipo(formData: FormData) {
 }
 
 export async function updateTipo(formData: FormData) {
+  await requireAuth();
+
   const id = asInt(formData, "id");
   const nombre = asString(formData, "nombre");
   if (!id || nombre.length < 2) fail("/tipos-producto", "Revisá el nombre del tipo.");
@@ -97,6 +123,8 @@ export async function updateTipo(formData: FormData) {
 }
 
 export async function deleteTipo(formData: FormData) {
+  await requireAuth();
+
   const id = asInt(formData, "id");
   try {
     await prisma.tipoProductoVenta.delete({ where: { id } });
@@ -109,10 +137,13 @@ export async function deleteTipo(formData: FormData) {
 }
 
 export async function createProducto(formData: FormData) {
+  await requireAuth();
+
   const sku = asString(formData, "sku");
   const nombre = asString(formData, "nombre");
   const familiaId = asInt(formData, "familiaId");
   const tipoProductoVentaId = asInt(formData, "tipoProductoVentaId");
+  const tipoProduccion = asTipoProduccion(formData);
   const activo = formData.get("activo") === "on";
 
   if (!sku || nombre.length < 2 || !familiaId || !tipoProductoVentaId) {
@@ -121,7 +152,7 @@ export async function createProducto(formData: FormData) {
 
   try {
     await prisma.producto.create({
-      data: { sku, nombre, familiaId, tipoProductoVentaId, activo },
+      data: { sku, nombre, familiaId, tipoProductoVentaId, tipoProduccion, activo },
     });
   } catch (error) {
     fail("/productos", prismaMessage(error, "No se pudo crear el producto."));
@@ -132,11 +163,14 @@ export async function createProducto(formData: FormData) {
 }
 
 export async function updateProducto(formData: FormData) {
+  await requireAuth();
+
   const id = asInt(formData, "id");
   const sku = asString(formData, "sku");
   const nombre = asString(formData, "nombre");
   const familiaId = asInt(formData, "familiaId");
   const tipoProductoVentaId = asInt(formData, "tipoProductoVentaId");
+  const tipoProduccion = asTipoProduccion(formData);
   const activo = formData.get("activo") === "on";
 
   if (!id || !sku || nombre.length < 2 || !familiaId || !tipoProductoVentaId) {
@@ -146,7 +180,7 @@ export async function updateProducto(formData: FormData) {
   try {
     await prisma.producto.update({
       where: { id },
-      data: { sku, nombre, familiaId, tipoProductoVentaId, activo },
+      data: { sku, nombre, familiaId, tipoProductoVentaId, tipoProduccion, activo },
     });
   } catch (error) {
     fail("/productos", prismaMessage(error, "No se pudo editar el producto."));
@@ -157,6 +191,8 @@ export async function updateProducto(formData: FormData) {
 }
 
 export async function deleteProducto(formData: FormData) {
+  await requireAuth();
+
   const id = asInt(formData, "id");
   const returnTo = asString(formData, "returnTo");
   const redirectTo = returnTo.startsWith("/productos") ? returnTo : "/productos";
@@ -172,6 +208,8 @@ export async function deleteProducto(formData: FormData) {
 }
 
 export async function saveVentaPeriodo(formData: FormData) {
+  await requireAuth();
+
   const id = asInt(formData, "id");
   const nombre = asString(formData, "nombre");
   const mes = asInt(formData, "mes");
@@ -238,6 +276,8 @@ export async function saveVentaPeriodo(formData: FormData) {
 }
 
 export async function deleteVentaPeriodo(formData: FormData) {
+  await requireAuth();
+
   const id = asInt(formData, "id");
   const returnTo = asString(formData, "returnTo");
   const redirectTo = returnTo.startsWith("/ventas") ? returnTo : "/ventas";
@@ -254,6 +294,8 @@ export async function deleteVentaPeriodo(formData: FormData) {
 }
 
 export async function updateForecastConfig(formData: FormData) {
+  await requireAuth();
+
   const movingAverageN = asInt(formData, "movingAverageN");
   const forecastHorizonMonths = asInt(formData, "forecastHorizonMonths");
   const polynomialDegree = asInt(formData, "polynomialDegree");
@@ -307,4 +349,73 @@ export async function updateForecastConfig(formData: FormData) {
   revalidatePath("/reporte");
   revalidatePath("/matriz-forecast");
   redirect("/configuracion");
+}
+
+export async function updatePreferredForecastModel(formData: FormData) {
+  await requireAuth();
+
+  const productoId = asInt(formData, "productoId");
+  const rawModel = asString(formData, "model");
+  const model =
+    rawModel === "automatic" || rawModel === ""
+      ? null
+      : (rawModel as ForecastModelKey);
+
+  if (!productoId) {
+    return { ok: false, message: "Producto inválido." };
+  }
+
+  if (model !== null && !forecastModelKeys.includes(model)) {
+    return { ok: false, message: "Modelo inválido." };
+  }
+
+  const product = await prisma.producto.findUnique({
+    where: { id: productoId },
+    select: { id: true },
+  });
+
+  if (!product) {
+    return { ok: false, message: "El producto no existe." };
+  }
+
+  await prisma.producto.update({
+    where: { id: productoId },
+    data: { preferredForecastModel: model },
+  });
+
+  revalidatePath("/reporte");
+  revalidatePath("/matriz-forecast");
+
+  return { ok: true, message: "Modelo guardado correctamente" };
+}
+
+export async function loginAction(formData: FormData) {
+  const email = asString(formData, "email").toLowerCase();
+  const password = String(formData.get("password") ?? "");
+
+  if (!email) fail("/login", "Ingresá tu email.");
+  if (!password) fail("/login", "Ingresá tu contraseña.");
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: {
+      id: true,
+      passwordHash: true,
+      active: true,
+    },
+  });
+
+  if (!user) return fail("/login", "Email o contraseña incorrectos.");
+  if (!user.active) return fail("/login", "El usuario está inactivo.");
+
+  const validPassword = await verifyPassword(password, user.passwordHash);
+  if (!validPassword) return fail("/login", "Email o contraseña incorrectos.");
+
+  await createSession(user);
+  redirect("/");
+}
+
+export async function logoutAction() {
+  await logout();
+  redirect("/login");
 }

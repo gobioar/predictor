@@ -1,21 +1,38 @@
 @import "tailwindcss";
 
 :root {
-  --background: #080808;
-  --foreground: #f5f5f5;
+  --background: #363636;
+  --foreground: #f5f7f9;
+  --gobio-teal: #32aa93;
+  --gobio-green: #7cbf81;
+  --gobio-mist: #cad2dd;
+  --gobio-slate: #667387;
+  --gobio-charcoal: #363636;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: "Montserrat", Arial, Helvetica, sans-serif;
+  --font-mono: "Montserrat", Arial, Helvetica, sans-serif;
+  --color-neutral-950: #363636;
+  --color-neutral-900: #3f4649;
+  --color-neutral-800: #4d5a60;
+  --color-neutral-500: #8d9aa7;
+  --color-neutral-400: #cad2dd;
+  --color-neutral-300: #e2e7ee;
+  --color-neutral-200: #eef2f6;
+  --color-neutral-100: #f7f9fb;
+  --color-emerald-400: #32aa93;
+  --color-emerald-300: #7cbf81;
+  --color-emerald-200: #c4e4c7;
+  --color-emerald-100: #e0f2e2;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-montserrat), Arial, Helvetica, sans-serif;
 }
 
 input,
@@ -28,4 +45,9 @@ a,
 input,
 select {
   outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(50, 170, 147, 0.36);
+  color: #ffffff;
 }

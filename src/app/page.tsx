@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { ArrowRight, Boxes, Database, Package, Settings2 } from "lucide-react";
+import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export default async function Home() {
+  await requireAuth();
+
   const [familias, tipos, productos, ventas, config] = await Promise.all([
     prisma.familiaProducto.count(),
     prisma.tipoProductoVenta.count(),
@@ -24,22 +27,21 @@ export default async function Home() {
 
   return (
     <div className="space-y-7">
-      <section className="flex flex-col gap-5 rounded-lg border border-white/10 bg-neutral-900/75 p-6 shadow-2xl shadow-black/30 md:flex-row md:items-end md:justify-between">
+      <section className="flex flex-col gap-5 rounded-lg border border-white/10 bg-[linear-gradient(135deg,rgba(50,170,147,0.28),rgba(54,54,54,0.92)_44%,rgba(102,115,135,0.56))] p-6 shadow-2xl shadow-black/20 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-emerald-300">
             Forecast estadístico
           </p>
           <h1 className="mt-3 text-3xl font-semibold text-white">
-            Demanda proyectada para productos de venta
+            Predictor de Demanda GoBio
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-300">
-            Cargá productos, ventas mensuales y generá proyecciones con Moving Average,
-            regresiones y Holt-Winters sin APIs externas ni inteligencia artificial.
+            Proyección mensual de ventas por producto para planificación comercial, compras y stock.
           </p>
         </div>
         <Link
           href="/reporte"
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-emerald-400 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-300"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#32aa93] px-4 text-sm font-semibold text-white transition hover:bg-[#7cbf81]"
         >
           Abrir reporte
           <ArrowRight size={18} />
@@ -50,7 +52,7 @@ export default async function Home() {
         {cards.map((card) => {
           const Icon = card.icon;
           return (
-            <div key={card.label} className="rounded-lg border border-white/10 bg-white/[0.04] p-5">
+            <div key={card.label} className="rounded-lg border border-white/10 bg-[#cad2dd]/10 p-5">
               <div className="flex items-center justify-between text-neutral-400">
                 <span className="text-sm">{card.label}</span>
                 <Icon size={18} />
@@ -86,15 +88,15 @@ export default async function Home() {
         <div className="rounded-lg border border-white/10 bg-neutral-900/70 p-5 lg:col-span-2">
           <h2 className="text-lg font-semibold text-white">Flujo recomendado</h2>
           <div className="mt-4 grid gap-3 text-sm text-neutral-300 md:grid-cols-3">
-            <div className="rounded-md bg-white/[0.04] p-4">
+            <div className="rounded-md bg-[#cad2dd]/10 p-4">
               <div className="font-semibold text-white">1. Maestro</div>
               <p className="mt-2">Definí familias, tipos y productos activos.</p>
             </div>
-            <div className="rounded-md bg-white/[0.04] p-4">
+            <div className="rounded-md bg-[#cad2dd]/10 p-4">
               <div className="font-semibold text-white">2. Histórico</div>
               <p className="mt-2">Cargá unidades vendidas por producto, año y mes.</p>
             </div>
-            <div className="rounded-md bg-white/[0.04] p-4">
+            <div className="rounded-md bg-[#cad2dd]/10 p-4">
               <div className="font-semibold text-white">3. Reporte</div>
               <p className="mt-2">Compará MAPE y usá el modelo recomendado.</p>
             </div>

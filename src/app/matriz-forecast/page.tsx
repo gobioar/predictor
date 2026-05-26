@@ -9,6 +9,7 @@ import {
   getForecastForMethod,
   type ForecastMethod,
 } from "@/lib/forecast-report";
+import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatMonth, nextMonth } from "@/lib/utils";
 
@@ -36,6 +37,8 @@ export default async function MatrizForecastPage({
     tipoProductoVentaId?: string;
   }>;
 }) {
+  await requireAuth();
+
   const params = await searchParams;
   const selectedMethod: ForecastMethod = isForecastMethod(params?.metodo)
     ? params.metodo
@@ -111,7 +114,11 @@ export default async function MatrizForecastPage({
     }));
     const values = buildProductSeries(seriesPeriodos);
     const models = calculateProductForecastModels(values, config);
-    const { forecast, modelKey } = getForecastForMethod(models, selectedMethod);
+    const { forecast, modelKey } = getForecastForMethod(
+      models,
+      selectedMethod,
+      producto.preferredForecastModel,
+    );
     const projectedValues = projectedMonths.map((_, index) =>
       typeof forecast[index] === "number" ? forecast[index] : null,
     );

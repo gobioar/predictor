@@ -1,4 +1,5 @@
 import { BadgeCheck, Calculator } from "lucide-react";
+import { PreferredForecastModelForm } from "@/components/PreferredForecastModelForm";
 import { EmptyState } from "@/components/EmptyState";
 import { ReportChart } from "@/components/ReportChart";
 import {
@@ -6,17 +7,15 @@ import {
   calculateLinearRegressionForecast,
   calculateMovingAverage,
   calculatePolynomialRegressionForecast,
-  selectRecommendedModel,
 } from "@/lib/forecast";
+import { requireAuth } from "@/lib/auth";
+import {
+  forecastMethodLabels,
+  resolveForecastModel,
+  type ProductForecastModels,
+} from "@/lib/forecast-report";
 import { prisma } from "@/lib/prisma";
 import { formatMonth, nextMonth } from "@/lib/utils";
-
-const modelLabels = {
-  movingAverage: "Moving Average",
-  linear: "Regresión Lineal",
-  polynomial: "Regresión Polinómica",
-  holtWinters: "Holt-Winters",
-} as const;
 
 const formatValue = (value: number | null | undefined) =>
   typeof value === "number" ? value.toLocaleString("es-AR") : "Sin datos";
@@ -29,6 +28,8 @@ export default async function ReportePage({
 }: {
   searchParams?: Promise<{ productoId?: string }>;
 }) {
+  await requireAuth();
+
   const params = await searchParams;
   const [productos, config] = await Promise.all([
     prisma.producto.findMany({
@@ -79,13 +80,14 @@ export default async function ReportePage({
         config.holtWintersMinRequiredMonths,
       )
     : null;
-
-  const recommended = selectRecommendedModel({
-    movingAverage: movingAverage?.mape,
-    linear: linear?.mape,
-    polynomial: polynomial?.mape,
-    holtWinters: holtWinters?.mape,
-  });
+  const models: ProductForecastModels | null =
+    movingAverage && linear && polynomial && holtWinters
+      ? { movingAverage, linear, polynomial, holtWinters }
+      : null;
+  const { automaticModelKey, usedModelKey, isManual } = resolveForecastModel(
+    models,
+    selectedProduct?.preferredForecastModel,
+  );
 
   const futureMonths = periodos.length
     ? Array.from({ length: horizon }, (_, index) => {
@@ -122,10 +124,10 @@ export default async function ReportePage({
   }));
 
   const mapes = [
-    { key: "movingAverage", label: modelLabels.movingAverage, value: movingAverage?.mape },
-    { key: "linear", label: modelLabels.linear, value: linear?.mape },
-    { key: "polynomial", label: modelLabels.polynomial, value: polynomial?.mape },
-    { key: "holtWinters", label: modelLabels.holtWinters, value: holtWinters?.mape },
+    { key: "movingAverage", label: forecastMethodLabels.movingAverage, value: movingAverage?.mape },
+    { key: "linear", label: forecastMethodLabels.linear, value: linear?.mape },
+    { key: "polynomial", label: forecastMethodLabels.polynomial, value: polynomial?.mape },
+    { key: "holtWinters", label: forecastMethodLabels.holtWinters, value: holtWinters?.mape },
   ];
 
   return (
@@ -145,7 +147,7 @@ export default async function ReportePage({
           >
             {productos.map((producto) => (
               <option key={producto.id} value={producto.id}>
-                {producto.sku} · {producto.nombre}
+                {producto.sku} - {producto.nombre}
               </option>
             ))}
           </select>
@@ -157,30 +159,60 @@ export default async function ReportePage({
       </header>
 
       {productos.length === 0 ? (
-        <EmptyState title="No hay productos activos" detail="Creá productos activos y ventas históricas para generar un forecast." />
+        <EmptyState title="No hay productos activos" detail="Crea productos activos y ventas historicas para generar un forecast." />
       ) : !selectedProduct ? (
-        <EmptyState title="Producto no encontrado" detail="Seleccioná un producto activo para recalcular el reporte." />
+        <EmptyState title="Producto no encontrado" detail="Selecciona un producto activo para recalcular el reporte." />
       ) : periodos.length === 0 ? (
-        <EmptyState title="Sin histórico para este producto" detail="Cargá ventas mensuales para que los modelos puedan calcular proyecciones." />
+        <EmptyState title="Sin historico para este producto" detail="Carga ventas mensuales para que los modelos puedan calcular proyecciones." />
       ) : (
         <>
           <section className="grid gap-4 lg:grid-cols-5">
             <div className="rounded-lg border border-white/10 bg-neutral-900/75 p-5 lg:col-span-2">
               <div className="text-sm text-neutral-400">Producto seleccionado</div>
               <h2 className="mt-2 text-xl font-semibold text-white">
-                {selectedProduct.sku} · {selectedProduct.nombre}
+                {selectedProduct.sku} - {selectedProduct.nombre}
               </h2>
               <div className="mt-3 flex flex-wrap gap-2 text-xs text-neutral-300">
                 <span className="rounded-md bg-white/[0.06] px-2 py-1">{selectedProduct.familia.nombre}</span>
                 <span className="rounded-md bg-white/[0.06] px-2 py-1">{selectedProduct.tipoProductoVenta.nombre}</span>
-                <span className="rounded-md bg-white/[0.06] px-2 py-1">{periodos.length} meses históricos</span>
+                <span className="rounded-md bg-white/[0.06] px-2 py-1">{periodos.length} meses historicos</span>
               </div>
-              {recommended && (
-                <div className="mt-5 inline-flex items-center gap-2 rounded-md border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-200">
-                  <BadgeCheck size={17} />
-                  Modelo recomendado: {modelLabels[recommended as keyof typeof modelLabels]}
+
+              {automaticModelKey && (
+                <div className="mt-5 grid gap-3 text-sm text-neutral-300 md:grid-cols-2">
+                  <div className="rounded-md bg-[#cad2dd]/10 px-3 py-2">
+                    <div className="text-xs uppercase tracking-wide text-neutral-400">
+                      Modelo automatico
+                    </div>
+                    <div className="mt-1 font-semibold text-white">
+                      {forecastMethodLabels[automaticModelKey]}
+                    </div>
+                  </div>
+                  <div className="rounded-md bg-[#cad2dd]/10 px-3 py-2">
+                    <div className="text-xs uppercase tracking-wide text-neutral-400">
+                      Modelo utilizado
+                    </div>
+                    <div className="mt-1 font-semibold text-white">
+                      {usedModelKey
+                        ? `${forecastMethodLabels[usedModelKey]} ${isManual ? "(manual)" : "(automatico)"}`
+                        : "Sin datos"}
+                    </div>
+                  </div>
                 </div>
               )}
+
+              {usedModelKey && (
+                <div className="mt-5 inline-flex items-center gap-2 rounded-md border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-200">
+                  <BadgeCheck size={17} />
+                  Modelo utilizado: {forecastMethodLabels[usedModelKey]}
+                </div>
+              )}
+
+              <PreferredForecastModelForm
+                productoId={selectedProduct.id}
+                preferredModel={selectedProduct.preferredForecastModel}
+              />
+
               {holtWinters?.message && (
                 <p className="mt-4 rounded-md border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
                   {holtWinters.message}
@@ -189,7 +221,7 @@ export default async function ReportePage({
             </div>
 
             {mapes.map((mape) => (
-              <div key={mape.key} className="rounded-lg border border-white/10 bg-white/[0.04] p-5">
+              <div key={mape.key} className="rounded-lg border border-white/10 bg-[#cad2dd]/10 p-5">
                 <div className="text-sm text-neutral-400">MAPE {mape.label}</div>
                 <div className="mt-3 text-2xl font-semibold text-white">{formatMape(mape.value)}</div>
               </div>
@@ -205,8 +237,8 @@ export default async function ReportePage({
                   <th className="px-4 py-3">Producto</th>
                   <th className="px-4 py-3">Mes proyectado</th>
                   <th className="px-4 py-3">Moving Average</th>
-                  <th className="px-4 py-3">Regresión Lineal</th>
-                  <th className="px-4 py-3">Regresión Polinómica</th>
+                  <th className="px-4 py-3">Regresion Lineal</th>
+                  <th className="px-4 py-3">Regresion Polinomica</th>
                   <th className="px-4 py-3">Holt-Winters</th>
                 </tr>
               </thead>

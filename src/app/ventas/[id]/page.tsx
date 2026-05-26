@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { VentaPeriodoForm } from "@/app/ventas/VentaPeriodoForm";
+import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export default async function EditarVentaPeriodoPage({
@@ -9,6 +10,8 @@ export default async function EditarVentaPeriodoPage({
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ error?: string }>;
 }) {
+  await requireAuth();
+
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const periodoId = Number(id);
   const [periodo, productos] = await Promise.all([

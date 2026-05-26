@@ -13,11 +13,15 @@
     "lint": "eslint",
     "seed": "tsx prisma/seed.ts",
     "seed:sales-2024": "tsx prisma/seed-sales-2024.ts",
-    "seed:sales-2025": "tsx prisma/seed-sales-2025.ts"
+    "seed:sales-2025": "tsx prisma/seed-sales-2025.ts",
+    "seed:sales-external-2025": "tsx prisma/seed-sales-external-2025.ts",
+    "seed:sales-external-2026": "tsx prisma/seed-sales-external-2026.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
+    "jose": "^6.2.3",
     "lucide-react": "^1.16.0",
     "next": "^15.3.6",
     "prisma": "^5.22.0",

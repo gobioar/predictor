@@ -4,6 +4,7 @@ import { Copy, Edit, Filter, Plus, Trash2, X } from "lucide-react";
 import { deleteVentaPeriodo } from "@/app/actions";
 import { Alert } from "@/components/Alert";
 import { EmptyState } from "@/components/EmptyState";
+import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatMonth } from "@/lib/utils";
 
@@ -21,6 +22,8 @@ export default async function VentasPage({
     page?: string;
   }>;
 }) {
+  await requireAuth();
+
   const params = await searchParams;
   const filters = {
     nombre: params?.nombre?.trim() ?? "",
