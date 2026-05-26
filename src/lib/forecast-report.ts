@@ -4,7 +4,6 @@ import {
   calculateMovingAverage,
   calculatePolynomialRegressionForecast,
   selectRecommendedModel,
-  type HoltWintersMode,
   type ModelResult,
 } from "@/lib/forecast";
 
