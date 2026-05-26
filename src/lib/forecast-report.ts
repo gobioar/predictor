@@ -30,8 +30,8 @@ export type ForecastConfigForModels = {
   maxMonthlyGrowthRate: number;
   holtWintersSeasonLength: number;
   holtWintersMinRequiredMonths: number;
-  holtWintersTrendType: HoltWintersMode;
-  holtWintersSeasonalType: HoltWintersMode;
+  holtWintersTrendType: string;
+holtWintersSeasonalType: string;
 };
 
 export type ForecastModelKey = Exclude<ForecastMethod, "recommended">;
@@ -71,13 +71,13 @@ export function calculateProductForecastModels(
     ),
 
     holtWinters: calculateHoltWintersForecast(
-      values,
-      horizon,
-      config.holtWintersSeasonLength,
-      config.holtWintersMinRequiredMonths,
-      config.holtWintersTrendType,
-      config.holtWintersSeasonalType,
-    ),
+  values,
+  horizon,
+  config.holtWintersSeasonLength,
+  config.holtWintersMinRequiredMonths,
+  config.holtWintersTrendType === "multiplicative" ? "multiplicative" : "additive",
+  config.holtWintersSeasonalType === "multiplicative" ? "multiplicative" : "additive",
+),
   };
 }
 
