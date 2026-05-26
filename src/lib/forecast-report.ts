@@ -4,6 +4,7 @@ import {
   calculateMovingAverage,
   calculatePolynomialRegressionForecast,
   selectRecommendedModel,
+  type HoltWintersMode,
   type ModelResult,
 } from "@/lib/forecast";
 
@@ -29,6 +30,8 @@ export type ForecastConfigForModels = {
   maxMonthlyGrowthRate: number;
   holtWintersSeasonLength: number;
   holtWintersMinRequiredMonths: number;
+  holtWintersTrendType: HoltWintersMode;
+  holtWintersSeasonalType: HoltWintersMode;
 };
 
 export type ForecastModelKey = Exclude<ForecastMethod, "recommended">;
@@ -52,19 +55,28 @@ export function calculateProductForecastModels(
   const horizon = config.forecastHorizonMonths || 12;
 
   return {
-    movingAverage: calculateMovingAverage(values, horizon, config.movingAverageN),
+    movingAverage: calculateMovingAverage(
+      values,
+      horizon,
+      config.movingAverageN,
+    ),
+
     linear: calculateLinearRegressionForecast(values, horizon),
+
     polynomial: calculatePolynomialRegressionForecast(
       values,
       horizon,
       config.polynomialDegree as 2 | 3,
       config.maxMonthlyGrowthRate,
     ),
+
     holtWinters: calculateHoltWintersForecast(
       values,
       horizon,
       config.holtWintersSeasonLength,
       config.holtWintersMinRequiredMonths,
+      config.holtWintersTrendType,
+      config.holtWintersSeasonalType,
     ),
   };
 }
@@ -86,6 +98,7 @@ export function getForecastForMethod(
 
   if (method === "recommended") {
     const modelKey = getRecommendedForecastModel(models);
+
     return {
       forecast: modelKey ? models[modelKey].forecast : [],
       modelKey,
