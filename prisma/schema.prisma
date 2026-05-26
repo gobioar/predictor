@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model FamiliaProducto {
+  id        Int        @id @default(autoincrement())
+  nombre    String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  productos Producto[]
+}
+
+model TipoProductoVenta {
+  id        Int        @id @default(autoincrement())
+  nombre    String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  productos Producto[]
+}
+
+model Producto {
+  id                  Int                @id @default(autoincrement())
+  sku                 String             @unique
+  nombre              String
+  familiaId           Int
+  tipoProductoVentaId Int
+  activo              Boolean            @default(true)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  familia             FamiliaProducto    @relation(fields: [familiaId], references: [id], onDelete: Restrict)
+  tipoProductoVenta   TipoProductoVenta  @relation(fields: [tipoProductoVentaId], references: [id], onDelete: Restrict)
+  ventaMensualItems   VentaMensualItem[]
+}
+
+model VentaMensualPeriodo {
+  id        Int                @id @default(autoincrement())
+  nombre    String
+  mes       Int
+  anio      Int
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  items     VentaMensualItem[]
+
+  @@unique([anio, mes])
+  @@index([anio, mes])
+}
+
+model VentaMensualItem {
+  id               Int                 @id @default(autoincrement())
+  periodoId        Int
+  productoId       Int
+  unidadesVendidas Int
+  periodo          VentaMensualPeriodo @relation(fields: [periodoId], references: [id], onDelete: Cascade)
+  producto         Producto            @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@unique([periodoId, productoId])
+  @@index([productoId])
+}
+
+model ForecastConfig {
+  id                           Int      @id
+  movingAverageN               Int      @default(3)
+  forecastHorizonMonths        Int      @default(12)
+  polynomialDegree             Int      @default(2)
+  maxMonthlyGrowthRate         Float    @default(35)
+  holtWintersSeasonLength      Int      @default(12)
+  holtWintersTrendType         String   @default("additive")
+  holtWintersSeasonalType      String   @default("multiplicative")
+  holtWintersMinRequiredMonths Int      @default(24)
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+}
