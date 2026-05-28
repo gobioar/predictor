@@ -10,6 +10,7 @@ import {
   DollarSign,
   Gauge,
   Grid3X3,
+  History,
   LineChart,
   LogOut,
   Package,
@@ -29,6 +30,7 @@ const items = [
   { href: "/precios-costos", label: "Precios y Costos", icon: DollarSign },
   { href: "/configuracion", label: "Configuración Forecast", icon: Settings2 },
   { href: "/reporte", label: "Reporte Predictivo", icon: ChartNoAxesCombined },
+  { href: "/reportes-historicos", label: "Reportes Históricos", icon: History },
   { href: "/matriz-forecast", label: "Matriz Forecast", icon: Grid3X3 },
   { href: "/proyeccion-economica", label: "Proyección Económica", icon: LineChart },
 ];
