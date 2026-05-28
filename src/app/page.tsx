@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Boxes, Database, Package, Settings2 } from "lucide-react";
 import { requireAuth } from "@/lib/auth";
+import { DEFAULT_FORECAST_HORIZON_MONTHS } from "@/lib/forecast-config";
 import { prisma } from "@/lib/prisma";
 
 export default async function Home() {
@@ -14,7 +15,7 @@ export default async function Home() {
     prisma.forecastConfig.upsert({
       where: { id: 1 },
       update: {},
-      create: { id: 1 },
+      create: { id: 1, forecastHorizonMonths: DEFAULT_FORECAST_HORIZON_MONTHS },
     }),
   ]);
 

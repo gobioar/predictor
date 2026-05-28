@@ -5,6 +5,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -20,7 +21,13 @@ type ChartRow = {
   holtWinters: number | null;
 };
 
-export function ReportChart({ data }: { data: ChartRow[] }) {
+export function ReportChart({
+  data,
+  forecastStartLabel,
+}: {
+  data: ChartRow[];
+  forecastStartLabel?: string;
+}) {
   return (
     <div className="h-[380px] rounded-lg border border-white/10 bg-[#363636] p-4">
       <ResponsiveContainer width="100%" height="100%">
@@ -37,6 +44,19 @@ export function ReportChart({ data }: { data: ChartRow[] }) {
             }}
           />
           <Legend />
+          {forecastStartLabel && (
+            <ReferenceLine
+              x={forecastStartLabel}
+              stroke="#32aa93"
+              strokeDasharray="4 4"
+              label={{
+                value: "Forecast",
+                fill: "#7cbf81",
+                fontSize: 12,
+                position: "insideTopRight",
+              }}
+            />
+          )}
           <Line type="monotone" dataKey="real" name="Ventas reales" stroke="#f7f9fb" strokeWidth={3} dot={false} connectNulls />
           <Line type="monotone" dataKey="movingAverage" name="Moving Average" stroke="#32aa93" strokeWidth={2} dot={false} connectNulls />
           <Line type="monotone" dataKey="linear" name="Regresión Lineal" stroke="#667387" strokeWidth={2} dot={false} connectNulls />

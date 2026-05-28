@@ -10,6 +10,10 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import { forecastModelKeys, type ForecastModelKey } from "@/lib/forecast-report";
+import {
+  MAX_FORECAST_HORIZON_MONTHS,
+  MIN_FORECAST_HORIZON_MONTHS,
+} from "@/lib/forecast-config";
 import { prisma } from "@/lib/prisma";
 
 const asString = (formData: FormData, key: string) =>
@@ -308,7 +312,8 @@ export async function updateForecastConfig(formData: FormData) {
 
   if (
     movingAverageN < 1 ||
-    forecastHorizonMonths < 1 ||
+    forecastHorizonMonths < MIN_FORECAST_HORIZON_MONTHS ||
+    forecastHorizonMonths > MAX_FORECAST_HORIZON_MONTHS ||
     ![2, 3].includes(polynomialDegree) ||
     !Number.isFinite(maxMonthlyGrowthRate) ||
     maxMonthlyGrowthRate < 0 ||

@@ -315,7 +315,7 @@ async function main() {
   await prisma.forecastConfig.upsert({
     where: { id: 1 },
     update: {},
-    create: { id: 1 },
+    create: { id: 1, forecastHorizonMonths: 18 },
   });
 }
 

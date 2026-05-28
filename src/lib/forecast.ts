@@ -245,8 +245,8 @@ function hasUnsafeMultiplicativeData(values: number[]) {
   );
 }
 
-function capForecastByHistory(value: number, values: number[]) {
-  const recent = values.slice(-12);
+function capForecastByHistory(value: number, values: number[], lookbackMonths: number) {
+  const recent = values.slice(-Math.max(1, lookbackMonths));
   const avgRecent = average(recent);
   const maxRecent = Math.max(...recent, 0);
 
@@ -395,7 +395,7 @@ function runHoltWinters(
       seasonalType,
     );
 
-    const capped = capForecastByHistory(raw, values);
+    const capped = capForecastByHistory(raw, values, seasonLength);
 
     return clampDemand(capped);
   });

@@ -2,6 +2,11 @@ import { Save } from "lucide-react";
 import { updateForecastConfig } from "@/app/actions";
 import { Alert } from "@/components/Alert";
 import { requireAuth } from "@/lib/auth";
+import {
+  DEFAULT_FORECAST_HORIZON_MONTHS,
+  MAX_FORECAST_HORIZON_MONTHS,
+  MIN_FORECAST_HORIZON_MONTHS,
+} from "@/lib/forecast-config";
 import { prisma } from "@/lib/prisma";
 
 export default async function ConfiguracionPage({
@@ -16,7 +21,7 @@ export default async function ConfiguracionPage({
   const config = await prisma.forecastConfig.upsert({
     where: { id: 1 },
     update: {},
-    create: { id: 1 },
+    create: { id: 1, forecastHorizonMonths: DEFAULT_FORECAST_HORIZON_MONTHS },
   });
 
   return (
@@ -59,7 +64,8 @@ export default async function ConfiguracionPage({
           <input
             name="forecastHorizonMonths"
             type="number"
-            min="1"
+            min={MIN_FORECAST_HORIZON_MONTHS}
+            max={MAX_FORECAST_HORIZON_MONTHS}
             defaultValue={config.forecastHorizonMonths}
             className="min-h-11 w-full rounded-md border border-white/10 bg-neutral-950 px-3 text-white"
           />

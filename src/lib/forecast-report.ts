@@ -7,6 +7,7 @@ import {
   selectRecommendedModel,
   type ModelResult,
 } from "@/lib/forecast";
+import { normalizeForecastHorizon } from "@/lib/forecast-config";
 
 export type ForecastMethod =
   | "movingAverage"
@@ -59,7 +60,7 @@ export function calculateProductForecastModels(
 ): ProductForecastModels | null {
   if (!values.length) return null;
 
-  const horizon = config.forecastHorizonMonths || 12;
+  const horizon = normalizeForecastHorizon(config.forecastHorizonMonths);
 
   return {
     movingAverage: calculateMovingAverage(values, horizon, config.movingAverageN),

@@ -84,7 +84,7 @@ model VentaMensualItem {
 model ForecastConfig {
   id                           Int      @id
   movingAverageN               Int      @default(3)
-  forecastHorizonMonths        Int      @default(12)
+  forecastHorizonMonths        Int      @default(18)
   polynomialDegree             Int      @default(2)
   maxMonthlyGrowthRate         Float    @default(35)
   holtWintersSeasonLength      Int      @default(12)

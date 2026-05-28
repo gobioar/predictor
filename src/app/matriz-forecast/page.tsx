@@ -10,8 +10,12 @@ import {
   type ForecastMethod,
 } from "@/lib/forecast-report";
 import { requireAuth } from "@/lib/auth";
+import {
+  DEFAULT_FORECAST_HORIZON_MONTHS,
+  normalizeForecastHorizon,
+} from "@/lib/forecast-config";
 import { prisma } from "@/lib/prisma";
-import { formatMonth, nextMonth } from "@/lib/utils";
+import { formatMonth, generateForecastMonths } from "@/lib/utils";
 
 const methodOptions: Array<{ value: ForecastMethod; label: string }> = [
   { value: "movingAverage", label: forecastMethodLabels.movingAverage },
@@ -79,11 +83,11 @@ export default async function MatrizForecastPage({
     prisma.forecastConfig.upsert({
       where: { id: 1 },
       update: {},
-      create: { id: 1 },
+      create: { id: 1, forecastHorizonMonths: DEFAULT_FORECAST_HORIZON_MONTHS },
     }),
   ]);
 
-  const horizon = config.forecastHorizonMonths || 12;
+  const horizon = normalizeForecastHorizon(config.forecastHorizonMonths);
   const allItems = periodos.length
     ? await prisma.ventaMensualItem.findMany({
         where: {
@@ -97,11 +101,7 @@ export default async function MatrizForecastPage({
     allItems.map((item) => [`${item.periodoId}:${item.productoId}`, item.unidadesVendidas]),
   );
   const lastPeriod = periodos.at(-1);
-  const projectedMonths = lastPeriod
-    ? Array.from({ length: horizon }, (_, index) =>
-        nextMonth(lastPeriod.anio, lastPeriod.mes, index + 1),
-      )
-    : [];
+  const projectedMonths = generateForecastMonths(lastPeriod, horizon);
 
   const rows = productos.map((producto) => {
     const seriesPeriodos = periodos.map((periodo) => ({

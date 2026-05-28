@@ -14,8 +14,12 @@ import {
   resolveForecastModel,
   type ProductForecastModels,
 } from "@/lib/forecast-report";
+import {
+  DEFAULT_FORECAST_HORIZON_MONTHS,
+  normalizeForecastHorizon,
+} from "@/lib/forecast-config";
 import { prisma } from "@/lib/prisma";
-import { formatMonth, nextMonth } from "@/lib/utils";
+import { formatMonth, generateForecastMonths } from "@/lib/utils";
 
 const formatValue = (value: number | null | undefined) =>
   typeof value === "number" ? value.toLocaleString("es-AR") : "Sin datos";
@@ -40,7 +44,7 @@ export default async function ReportePage({
     prisma.forecastConfig.upsert({
       where: { id: 1 },
       update: {},
-      create: { id: 1 },
+      create: { id: 1, forecastHorizonMonths: DEFAULT_FORECAST_HORIZON_MONTHS },
     }),
   ]);
 
@@ -59,7 +63,7 @@ export default async function ReportePage({
     : [];
 
   const values = periodos.map((periodo) => periodo.items[0]?.unidadesVendidas ?? 0);
-  const horizon = config.forecastHorizonMonths;
+  const horizon = normalizeForecastHorizon(config.forecastHorizonMonths);
   const movingAverage = values.length
     ? calculateMovingAverage(values, horizon, config.movingAverageN)
     : null;
@@ -89,12 +93,7 @@ export default async function ReportePage({
     selectedProduct?.preferredForecastModel,
   );
 
-  const futureMonths = periodos.length
-    ? Array.from({ length: horizon }, (_, index) => {
-        const last = periodos[periodos.length - 1];
-        return nextMonth(last.anio, last.mes, index + 1);
-      })
-    : [];
+  const futureMonths = generateForecastMonths(periodos.at(-1), horizon);
 
   const chartData = [
     ...periodos.map((periodo, index) => ({
@@ -228,7 +227,7 @@ export default async function ReportePage({
             ))}
           </section>
 
-          <ReportChart data={chartData} />
+          <ReportChart data={chartData} forecastStartLabel={futureMonths[0] ? formatMonth(futureMonths[0].anio, futureMonths[0].mes) : undefined} />
 
           <div className="overflow-x-auto rounded-lg border border-white/10 bg-neutral-900/75">
             <table className="w-full min-w-[980px] text-left text-sm">
