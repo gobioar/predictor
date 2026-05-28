@@ -20,9 +20,11 @@ export const config = {
     "/tipos-producto/:path*",
     "/productos/:path*",
     "/ventas/:path*",
+    "/precios-costos/:path*",
     "/configuracion/:path*",
     "/reporte/:path*",
     "/matriz-forecast/:path*",
+    "/proyeccion-economica/:path*",
     "/login",
   ],
 };

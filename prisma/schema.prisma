@@ -41,19 +41,20 @@ model TipoProductoVenta {
 }
 
 model Producto {
-  id                     Int                @id @default(autoincrement())
-  sku                    String             @unique
-  nombre                 String
-  familiaId              Int
-  tipoProductoVentaId    Int
-  tipoProduccion         String             @default("Propio")
-  preferredForecastModel ForecastModel?
-  activo                 Boolean            @default(true)
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
-  familia                FamiliaProducto    @relation(fields: [familiaId], references: [id], onDelete: Restrict)
-  tipoProductoVenta      TipoProductoVenta  @relation(fields: [tipoProductoVentaId], references: [id], onDelete: Restrict)
-  ventaMensualItems      VentaMensualItem[]
+  id                      Int                      @id @default(autoincrement())
+  sku                     String                   @unique
+  nombre                  String
+  familiaId               Int
+  tipoProductoVentaId     Int
+  tipoProduccion          String                   @default("Propio")
+  preferredForecastModel  ForecastModel?
+  activo                  Boolean                  @default(true)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  familia                 FamiliaProducto          @relation(fields: [familiaId], references: [id], onDelete: Restrict)
+  tipoProductoVenta       TipoProductoVenta        @relation(fields: [tipoProductoVentaId], references: [id], onDelete: Restrict)
+  ventaMensualItems       VentaMensualItem[]
+  precioCostoMensualItems PrecioCostoMensualItem[]
 }
 
 model VentaMensualPeriodo {
@@ -81,12 +82,43 @@ model VentaMensualItem {
   @@index([productoId])
 }
 
+model PrecioCostoMensualPeriodo {
+  id        Int                      @id @default(autoincrement())
+  nombre    String
+  mes       Int
+  anio      Int
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+  items     PrecioCostoMensualItem[]
+
+  @@unique([anio, mes])
+  @@index([anio, mes])
+}
+
+model PrecioCostoMensualItem {
+  id                    Int                       @id @default(autoincrement())
+  periodoId             Int
+  productoId            Int
+  precioVentaPromedio   Decimal                   @db.Decimal(14, 2)
+  costoUnitarioPromedio Decimal                   @db.Decimal(14, 2)
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  periodo               PrecioCostoMensualPeriodo @relation(fields: [periodoId], references: [id], onDelete: Cascade)
+  producto              Producto                  @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@unique([periodoId, productoId])
+  @@index([productoId])
+}
+
 model ForecastConfig {
   id                           Int      @id
   movingAverageN               Int      @default(3)
   forecastHorizonMonths        Int      @default(18)
   polynomialDegree             Int      @default(2)
   maxMonthlyGrowthRate         Float    @default(35)
+  economicProjectionMethod     String   @default("lastKnown")
+  monthlyPriceGrowthRate       Decimal  @default(0) @db.Decimal(8, 4)
+  monthlyCostGrowthRate        Decimal  @default(0) @db.Decimal(8, 4)
   holtWintersSeasonLength      Int      @default(12)
   holtWintersTrendType         String   @default("additive")
   holtWintersSeasonalType      String   @default("additive")

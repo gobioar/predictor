@@ -7,8 +7,10 @@ import {
   Boxes,
   ChartNoAxesCombined,
   Database,
+  DollarSign,
   Gauge,
   Grid3X3,
+  LineChart,
   LogOut,
   Package,
   Settings2,
@@ -24,16 +26,18 @@ const items = [
   { href: "/tipos-producto", label: "Tipos de Producto", icon: Tags },
   { href: "/productos", label: "Productos", icon: Package },
   { href: "/ventas", label: "Ventas Mensuales", icon: Database },
+  { href: "/precios-costos", label: "Precios y Costos", icon: DollarSign },
   { href: "/configuracion", label: "Configuración Forecast", icon: Settings2 },
   { href: "/reporte", label: "Reporte Predictivo", icon: ChartNoAxesCombined },
   { href: "/matriz-forecast", label: "Matriz Forecast", icon: Grid3X3 },
+  { href: "/proyeccion-economica", label: "Proyección Económica", icon: LineChart },
 ];
 
 export function Sidebar({ user }: { user: CurrentUser | null }) {
   const pathname = usePathname();
 
   return (
-    <aside className="flex min-h-screen w-72 flex-col border-r border-white/10 bg-[#363636] px-4 py-5">
+    <aside className="flex min-h-screen w-72 flex-col overflow-y-auto border-r border-white/10 bg-[#363636] px-4 py-5">
       <Link href="/" className="mb-8 flex items-center gap-3 px-2">
         <div className="flex size-10 items-center justify-center rounded-lg bg-[linear-gradient(135deg,#32aa93,#7cbf81)] text-white shadow-lg shadow-[#32aa93]/20">
           <BarChart3 size={22} />

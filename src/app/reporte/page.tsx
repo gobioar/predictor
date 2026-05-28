@@ -15,6 +15,10 @@ import {
   type ProductForecastModels,
 } from "@/lib/forecast-report";
 import {
+  calculateEconomicForecast,
+  projectPriceCost,
+} from "@/lib/economic-forecast";
+import {
   DEFAULT_FORECAST_HORIZON_MONTHS,
   normalizeForecastHorizon,
 } from "@/lib/forecast-config";
@@ -26,6 +30,15 @@ const formatValue = (value: number | null | undefined) =>
 
 const formatMape = (value: number | null | undefined) =>
   typeof value === "number" ? `${value.toFixed(2)}%` : "No disponible";
+const formatMoney = (value: number | null | undefined) =>
+  typeof value === "number"
+    ? `$ ${value.toLocaleString("es-AR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`
+    : "Sin datos";
+const formatPercent = (value: number | null | undefined) =>
+  typeof value === "number" ? `${value.toFixed(2)}%` : "Sin datos";
 
 export default async function ReportePage({
   searchParams,
@@ -121,6 +134,15 @@ export default async function ReportePage({
     polynomial: polynomial?.forecast[index] ?? null,
     holtWinters: holtWinters?.forecast[index] ?? null,
   }));
+  const usedForecast =
+    usedModelKey && models ? models[usedModelKey].forecast : [];
+  const economicForecast =
+    selectedProduct && futureMonths.length
+      ? calculateEconomicForecast(
+          usedForecast,
+          await projectPriceCost(selectedProduct.id, futureMonths, config),
+        )
+      : [];
 
   const mapes = [
     { key: "movingAverage", label: forecastMethodLabels.movingAverage, value: movingAverage?.mape },
@@ -228,6 +250,61 @@ export default async function ReportePage({
           </section>
 
           <ReportChart data={chartData} forecastStartLabel={futureMonths[0] ? formatMonth(futureMonths[0].anio, futureMonths[0].mes) : undefined} />
+
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-xl font-semibold text-white">Proyección económica</h2>
+              <p className="mt-1 text-sm text-neutral-400">
+                Calculada con el modelo de unidades actualmente utilizado.
+              </p>
+            </div>
+            <div className="overflow-x-auto rounded-lg border border-white/10 bg-neutral-900/75">
+              <table className="w-full min-w-[1180px] text-left text-sm">
+                <thead className="bg-white/[0.04] text-xs uppercase tracking-wide text-neutral-400">
+                  <tr>
+                    <th className="px-4 py-3">Mes</th>
+                    <th className="px-4 py-3 text-right">Unidades</th>
+                    <th className="px-4 py-3 text-right">Precio venta</th>
+                    <th className="px-4 py-3 text-right">Facturación</th>
+                    <th className="px-4 py-3 text-right">Costo unitario</th>
+                    <th className="px-4 py-3 text-right">Costo</th>
+                    <th className="px-4 py-3 text-right">Margen</th>
+                    <th className="px-4 py-3 text-right">% margen</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/10">
+                  {economicForecast.map((row) => (
+                    <tr key={`${row.anio}-${row.mes}`}>
+                      <td className="px-4 py-3 text-neutral-300">
+                        {formatMonth(row.anio, row.mes)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-neutral-200">
+                        {row.unidadesProyectadas.toLocaleString("es-AR")}
+                      </td>
+                      <td className="px-4 py-3 text-right text-neutral-200">
+                        {formatMoney(row.precioVentaProyectado)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-neutral-200">
+                        {formatMoney(row.facturacionProyectada)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-neutral-200">
+                        {formatMoney(row.costoUnitarioProyectado)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-neutral-200">
+                        {formatMoney(row.costoProyectado)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-neutral-200">
+                        {formatMoney(row.margenBrutoProyectado)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-neutral-200">
+                        {formatPercent(row.margenBrutoPorcentaje)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
 
           <div className="overflow-x-auto rounded-lg border border-white/10 bg-neutral-900/75">
             <table className="w-full min-w-[980px] text-left text-sm">

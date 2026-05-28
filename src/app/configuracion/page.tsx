@@ -159,6 +159,57 @@ export default async function ConfiguracionPage({
           </select>
         </label>
 
+        <div className="border-t border-white/10 pt-5 md:col-span-2">
+          <h2 className="text-lg font-semibold text-white">Proyección económica</h2>
+          <p className="mt-1 text-sm text-neutral-400">
+            Define cómo proyectar precios de venta y costos unitarios para calcular facturación y margen.
+          </p>
+        </div>
+
+        <label className="space-y-2">
+          <span className="text-sm font-medium text-neutral-300">
+            Método de precios/costos
+          </span>
+
+          <select
+            name="economicProjectionMethod"
+            defaultValue={config.economicProjectionMethod}
+            className="min-h-11 w-full rounded-md border border-white/10 bg-neutral-950 px-3 text-white"
+          >
+            <option value="lastKnown">Último valor conocido</option>
+            <option value="manualGrowth">Crecimiento manual mensual</option>
+            <option value="movingAverage">Promedio móvil</option>
+          </select>
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-sm font-medium text-neutral-300">
+            Ajuste mensual precio venta (%)
+          </span>
+
+          <input
+            name="monthlyPriceGrowthRate"
+            type="number"
+            step="0.01"
+            defaultValue={config.monthlyPriceGrowthRate.toString()}
+            className="min-h-11 w-full rounded-md border border-white/10 bg-neutral-950 px-3 text-white"
+          />
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-sm font-medium text-neutral-300">
+            Ajuste mensual costo (%)
+          </span>
+
+          <input
+            name="monthlyCostGrowthRate"
+            type="number"
+            step="0.01"
+            defaultValue={config.monthlyCostGrowthRate.toString()}
+            className="min-h-11 w-full rounded-md border border-white/10 bg-neutral-950 px-3 text-white"
+          />
+        </label>
+
         <div className="md:col-span-2">
           <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-emerald-400 px-4 text-sm font-semibold text-neutral-950 hover:bg-emerald-300">
             <Save size={17} />

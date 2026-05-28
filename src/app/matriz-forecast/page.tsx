@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { Filter, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Filter, X } from "lucide-react";
 import Link from "next/link";
 import { EmptyState } from "@/components/EmptyState";
 import {
@@ -28,8 +28,18 @@ const methodOptions: Array<{ value: ForecastMethod; label: string }> = [
 const isForecastMethod = (value?: string): value is ForecastMethod =>
   methodOptions.some((option) => option.value === value);
 
+type SortDirection = "asc" | "desc";
+
+const isSortDirection = (value?: string): value is SortDirection =>
+  value === "asc" || value === "desc";
+
 const formatDemand = (value: number | null) =>
   typeof value === "number" ? value.toLocaleString("es-AR") : "—";
+
+const textCollator = new Intl.Collator("es-AR", {
+  numeric: true,
+  sensitivity: "base",
+});
 
 export default async function MatrizForecastPage({
   searchParams,
@@ -39,6 +49,8 @@ export default async function MatrizForecastPage({
     q?: string;
     familiaId?: string;
     tipoProductoVentaId?: string;
+    sort?: string;
+    dir?: string;
   }>;
 }) {
   await requireAuth();
@@ -102,6 +114,15 @@ export default async function MatrizForecastPage({
   );
   const lastPeriod = periodos.at(-1);
   const projectedMonths = generateForecastMonths(lastPeriod, horizon);
+  const requestedSort = params?.sort ?? "producto";
+  const selectedSort =
+    requestedSort === "producto" ||
+    requestedSort === "total" ||
+    requestedSort === "model" ||
+    projectedMonths.some((_, index) => requestedSort === `month-${index}`)
+      ? requestedSort
+      : "producto";
+  const sortDirection: SortDirection = isSortDirection(params?.dir) ? params.dir : "asc";
 
   const rows = productos.map((producto) => {
     const seriesPeriodos = periodos.map((periodo) => ({
@@ -135,6 +156,30 @@ export default async function MatrizForecastPage({
     };
   });
 
+  const sortedRows = [...rows].sort((a, b) => {
+    let comparison = 0;
+
+    if (selectedSort === "producto") {
+      comparison = textCollator.compare(a.producto.nombre, b.producto.nombre);
+      if (comparison === 0) {
+        comparison = textCollator.compare(a.producto.sku, b.producto.sku);
+      }
+    } else if (selectedSort === "total") {
+      comparison = a.total - b.total;
+    } else if (selectedSort === "model") {
+      const aModel = a.modelKey ? forecastMethodLabels[a.modelKey] : "";
+      const bModel = b.modelKey ? forecastMethodLabels[b.modelKey] : "";
+      comparison = textCollator.compare(aModel, bModel);
+    } else {
+      const monthIndex = Number(selectedSort.replace("month-", ""));
+      comparison =
+        (a.projectedValues[monthIndex] ?? Number.NEGATIVE_INFINITY) -
+        (b.projectedValues[monthIndex] ?? Number.NEGATIVE_INFINITY);
+    }
+
+    return sortDirection === "asc" ? comparison : -comparison;
+  });
+
   const monthlyTotals = projectedMonths.map((_, monthIndex) =>
     rows.reduce<number>(
       (sum, row) =>
@@ -147,6 +192,42 @@ export default async function MatrizForecastPage({
   );
   const grandTotal = rows.reduce((sum, row) => sum + row.total, 0);
   const showRecommendedModel = selectedMethod === "recommended";
+  const sortHref = (sort: string) => {
+    const nextDirection: SortDirection =
+      selectedSort === sort && sortDirection === "asc" ? "desc" : "asc";
+    const search = new URLSearchParams();
+
+    search.set("metodo", selectedMethod);
+    if (filters.q) search.set("q", filters.q);
+    if (filters.familiaId) search.set("familiaId", filters.familiaId);
+    if (filters.tipoProductoVentaId) {
+      search.set("tipoProductoVentaId", filters.tipoProductoVentaId);
+    }
+    search.set("sort", sort);
+    search.set("dir", nextDirection);
+
+    return `/matriz-forecast?${search.toString()}`;
+  };
+  const sortIcon = (sort: string) => {
+    if (selectedSort !== sort) return <ArrowUpDown size={14} aria-hidden="true" />;
+
+    return sortDirection === "asc" ? (
+      <ArrowUp size={14} aria-hidden="true" />
+    ) : (
+      <ArrowDown size={14} aria-hidden="true" />
+    );
+  };
+  const sortHeader = (label: string, sort: string, align: "left" | "right" = "left") => (
+    <Link
+      href={sortHref(sort)}
+      className={`inline-flex w-full items-center gap-1.5 text-neutral-300 transition hover:text-white ${
+        align === "right" ? "justify-end" : "justify-start"
+      }`}
+    >
+      <span>{label}</span>
+      {sortIcon(sort)}
+    </Link>
+  );
 
   return (
     <div className="space-y-6">
@@ -231,33 +312,35 @@ export default async function MatrizForecastPage({
             <thead className="bg-white/[0.04] text-xs uppercase tracking-wide text-neutral-400">
               <tr>
                 <th className="sticky left-0 z-20 min-w-72 border-b border-white/10 bg-neutral-900 px-4 py-3">
-                  Producto
+                  {sortHeader("Producto", "producto")}
                 </th>
-                {projectedMonths.map((month) => (
+                {projectedMonths.map((month, index) => (
                   <th
                     key={`${month.anio}-${month.mes}`}
                     className="min-w-32 border-b border-white/10 px-4 py-3 text-right"
                   >
-                    {formatMonth(month.anio, month.mes)}
+                    {sortHeader(formatMonth(month.anio, month.mes), `month-${index}`, "right")}
                   </th>
                 ))}
                 <th className="min-w-36 border-b border-white/10 px-4 py-3 text-right">
-                  Total {horizon} meses
+                  {sortHeader(`Total ${horizon} meses`, "total", "right")}
                 </th>
                 {showRecommendedModel && (
                   <th className="min-w-44 border-b border-white/10 px-4 py-3">
-                    Modelo usado
+                    {sortHeader("Modelo usado", "model")}
                   </th>
                 )}
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {sortedRows.map((row) => (
                 <tr key={row.producto.id} className="group">
                   <td className="sticky left-0 z-10 border-b border-white/10 bg-neutral-900 px-4 py-3 text-white group-hover:bg-neutral-800">
-                    <div className="font-semibold">{row.producto.sku}</div>
-                    <div className="mt-1 max-w-64 truncate text-xs text-neutral-400">
+                    <div className="max-w-64 truncate font-semibold">
                       {row.producto.nombre}
+                    </div>
+                    <div className="mt-1 text-xs font-medium text-neutral-400">
+                      {row.producto.sku}
                     </div>
                   </td>
                   {row.projectedValues.map((value, index) => (

@@ -24,7 +24,14 @@ const asInt = (formData: FormData, key: string) => {
   return Number.isFinite(value) ? Math.trunc(value) : NaN;
 };
 
+const asDecimalNumber = (formData: FormData, key: string) => {
+  const raw = String(formData.get(key) ?? "0").trim().replace(",", ".");
+  const value = Number(raw || 0);
+  return Number.isFinite(value) ? value : NaN;
+};
+
 const tiposProduccion = ["Propio", "Externo"] as const;
+const economicProjectionMethods = ["lastKnown", "movingAverage", "manualGrowth"] as const;
 
 const asTipoProduccion = (formData: FormData) => {
   const value = asString(formData, "tipoProduccion");
@@ -297,6 +304,135 @@ export async function deleteVentaPeriodo(formData: FormData) {
   redirect(redirectTo);
 }
 
+export async function savePrecioCostoPeriodo(formData: FormData) {
+  await requireAuth();
+
+  const id = asInt(formData, "id");
+  const nombre = asString(formData, "nombre");
+  const mes = asInt(formData, "mes");
+  const anio = asInt(formData, "anio");
+  const formPath = asString(formData, "formPath") || "/precios-costos/nuevo";
+  const productoIds = formData
+    .getAll("productoId")
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0);
+
+  if (nombre.length < 2 || mes < 1 || mes > 12 || anio < 2000 || anio > 2100) {
+    fail(formPath, "Completá nombre, mes y año válidos.");
+  }
+
+  const existingProducts = await prisma.producto.findMany({
+    where: { id: { in: productoIds } },
+    select: { id: true },
+  });
+  const existingProductIds = new Set(existingProducts.map((producto) => producto.id));
+
+  const items = productoIds.map((productoId) => {
+    const precioVentaPromedio = asDecimalNumber(
+      formData,
+      `precioVentaPromedio_${productoId}`,
+    );
+    const costoUnitarioPromedio = asDecimalNumber(
+      formData,
+      `costoUnitarioPromedio_${productoId}`,
+    );
+
+    return {
+      productoId,
+      precioVentaPromedio,
+      costoUnitarioPromedio,
+    };
+  });
+
+  if (items.some((item) => !existingProductIds.has(item.productoId))) {
+    fail(formPath, "Uno o más productos no existen.");
+  }
+
+  if (
+    items.some(
+      (item) =>
+        !Number.isFinite(item.precioVentaPromedio) ||
+        !Number.isFinite(item.costoUnitarioPromedio) ||
+        item.precioVentaPromedio < 0 ||
+        item.costoUnitarioPromedio < 0,
+    )
+  ) {
+    fail(formPath, "Precios y costos deben ser números mayores o iguales a 0.");
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const periodo = id
+        ? await tx.precioCostoMensualPeriodo.update({
+            where: { id },
+            data: { nombre, mes, anio },
+          })
+        : await tx.precioCostoMensualPeriodo.create({
+            data: { nombre, mes, anio },
+          });
+
+      for (const item of items) {
+        if (item.precioVentaPromedio === 0 && item.costoUnitarioPromedio === 0) {
+          await tx.precioCostoMensualItem.deleteMany({
+            where: {
+              periodoId: periodo.id,
+              productoId: item.productoId,
+            },
+          });
+          continue;
+        }
+
+        await tx.precioCostoMensualItem.upsert({
+          where: {
+            periodoId_productoId: {
+              periodoId: periodo.id,
+              productoId: item.productoId,
+            },
+          },
+          update: {
+            precioVentaPromedio: new Prisma.Decimal(item.precioVentaPromedio),
+            costoUnitarioPromedio: new Prisma.Decimal(item.costoUnitarioPromedio),
+          },
+          create: {
+            periodoId: periodo.id,
+            productoId: item.productoId,
+            precioVentaPromedio: new Prisma.Decimal(item.precioVentaPromedio),
+            costoUnitarioPromedio: new Prisma.Decimal(item.costoUnitarioPromedio),
+          },
+        });
+      }
+    });
+  } catch (error) {
+    fail(formPath, prismaMessage(error, "No se pudo guardar precios y costos."));
+  }
+
+  revalidatePath("/precios-costos");
+  revalidatePath("/proyeccion-economica");
+  revalidatePath("/reporte");
+  redirect("/precios-costos?success=Datos%20guardados%20correctamente");
+}
+
+export async function deletePrecioCostoPeriodo(formData: FormData) {
+  await requireAuth();
+
+  const id = asInt(formData, "id");
+  const returnTo = asString(formData, "returnTo");
+  const redirectTo = returnTo.startsWith("/precios-costos")
+    ? returnTo
+    : "/precios-costos";
+
+  try {
+    await prisma.precioCostoMensualPeriodo.delete({ where: { id } });
+  } catch (error) {
+    fail(redirectTo, prismaMessage(error, "No se pudo eliminar el período."));
+  }
+
+  revalidatePath("/precios-costos");
+  revalidatePath("/proyeccion-economica");
+  revalidatePath("/reporte");
+  redirect(redirectTo);
+}
+
 export async function updateForecastConfig(formData: FormData) {
   await requireAuth();
 
@@ -309,6 +445,9 @@ export async function updateForecastConfig(formData: FormData) {
 
   const holtWintersTrendType = asString(formData, "holtWintersTrendType");
   const holtWintersSeasonalType = asString(formData, "holtWintersSeasonalType");
+  const economicProjectionMethod = asString(formData, "economicProjectionMethod");
+  const monthlyPriceGrowthRate = asDecimalNumber(formData, "monthlyPriceGrowthRate");
+  const monthlyCostGrowthRate = asDecimalNumber(formData, "monthlyCostGrowthRate");
 
   if (
     movingAverageN < 1 ||
@@ -320,7 +459,12 @@ export async function updateForecastConfig(formData: FormData) {
     holtWintersSeasonLength < 2 ||
     holtWintersMinRequiredMonths < holtWintersSeasonLength ||
     !["additive", "multiplicative"].includes(holtWintersTrendType) ||
-    !["additive", "multiplicative"].includes(holtWintersSeasonalType)
+    !["additive", "multiplicative"].includes(holtWintersSeasonalType) ||
+    !economicProjectionMethods.includes(
+      economicProjectionMethod as (typeof economicProjectionMethods)[number],
+    ) ||
+    !Number.isFinite(monthlyPriceGrowthRate) ||
+    !Number.isFinite(monthlyCostGrowthRate)
   ) {
     fail("/configuracion", "Revisá los parámetros del forecast.");
   }
@@ -336,6 +480,9 @@ export async function updateForecastConfig(formData: FormData) {
       holtWintersTrendType,
       holtWintersSeasonalType,
       holtWintersMinRequiredMonths,
+      economicProjectionMethod,
+      monthlyPriceGrowthRate: new Prisma.Decimal(monthlyPriceGrowthRate),
+      monthlyCostGrowthRate: new Prisma.Decimal(monthlyCostGrowthRate),
     },
     create: {
       id: 1,
@@ -347,12 +494,16 @@ export async function updateForecastConfig(formData: FormData) {
       holtWintersTrendType,
       holtWintersSeasonalType,
       holtWintersMinRequiredMonths,
+      economicProjectionMethod,
+      monthlyPriceGrowthRate: new Prisma.Decimal(monthlyPriceGrowthRate),
+      monthlyCostGrowthRate: new Prisma.Decimal(monthlyCostGrowthRate),
     },
   });
 
   revalidatePath("/configuracion");
   revalidatePath("/reporte");
   revalidatePath("/matriz-forecast");
+  revalidatePath("/proyeccion-economica");
   redirect("/configuracion");
 }
 

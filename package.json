@@ -15,7 +15,14 @@
     "seed:sales-2024": "tsx prisma/seed-sales-2024.ts",
     "seed:sales-2025": "tsx prisma/seed-sales-2025.ts",
     "seed:sales-external-2025": "tsx prisma/seed-sales-external-2025.ts",
-    "seed:sales-external-2026": "tsx prisma/seed-sales-external-2026.ts"
+    "seed:sales-external-2026": "tsx prisma/seed-sales-external-2026.ts",
+    "seed:costs-january-2026": "tsx prisma/seed-costs-january-2026.ts",
+    "seed:costs-february-2026": "tsx prisma/seed-costs-february-2026.ts",
+    "seed:costs-march-2026": "tsx prisma/seed-costs-march-2026.ts",
+    "seed:prices-january-2026": "tsx prisma/seed-prices-january-2026.ts",
+    "seed:prices-february-2026": "tsx prisma/seed-prices-february-2026.ts",
+    "seed:prices-march-2026": "tsx prisma/seed-prices-march-2026.ts",
+    "seed:prices-april-2026": "tsx prisma/seed-prices-april-2026.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
