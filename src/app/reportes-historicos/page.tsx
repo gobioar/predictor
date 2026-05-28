@@ -3,6 +3,14 @@ import Link from "next/link";
 import { EmptyState } from "@/components/EmptyState";
 import { requireAuth } from "@/lib/auth";
 import {
+  buildLineAnalytics,
+  buildMaterialAnalytics,
+  buildProductionAnalytics,
+  getHistoricalAnalyticsLineOptions,
+  type AnalyticsView,
+  type HistoricalAnalyticsReport,
+} from "@/lib/historical-analytics";
+import {
   buildGrossProfitCategoryReport,
   buildGrossProfitCompanyReport,
   buildGrossProfitProductReport,
@@ -34,6 +42,9 @@ import { formatMonth } from "@/lib/utils";
 import {
   GrossProfitCompanyCharts,
   GrossProfitRankingChart,
+  AnalyticsLinesCharts,
+  AnalyticsMaterialsCharts,
+  AnalyticsProductionCharts,
   ProductChartsGrid,
   type CompanyChartPoint,
   type ProductChartPoint,
@@ -71,6 +82,13 @@ const quickFilters: Array<{ value: GrossProfitQuickFilter; label: string }> = [
   { value: "missingPrice", label: "Sin precio" },
 ];
 
+const analyticsViews: Array<{ value: AnalyticsView; label: string }> = [
+  { value: "productos", label: "Productos" },
+  { value: "lineas", label: "Líneas" },
+  { value: "materiales", label: "Materiales" },
+  { value: "produccion", label: "Producción" },
+];
+
 const categoryOptions: Array<{ value: CategoryFilter; label: string }> = [
   { value: "all", label: "Todas" },
   ...reportingMaterialKeys.map((key) => ({
@@ -104,6 +122,9 @@ const isGrossProfitMetric = (value?: string): value is GrossProfitMetric =>
 
 const isQuickFilter = (value?: string): value is GrossProfitQuickFilter =>
   quickFilters.some((filter) => filter.value === value);
+
+const isAnalyticsView = (value?: string): value is AnalyticsView =>
+  analyticsViews.some((view) => view.value === value);
 
 const numberFormat = (value: number) => Math.round(value).toLocaleString("es-AR");
 const moneyFormat = (value: number) =>
@@ -307,6 +328,8 @@ export default async function ReportesHistoricosPage({
     familiaId?: string;
     tipoProductoVentaId?: string;
     filtroRapido?: string;
+    vista?: string;
+    linea?: string;
   }>;
 }) {
   await requireAuth();
@@ -322,6 +345,9 @@ export default async function ReportesHistoricosPage({
   const quickFilter: GrossProfitQuickFilter = isQuickFilter(params?.filtroRapido)
     ? params.filtroRapido
     : "all";
+  const analyticsView: AnalyticsView = isAnalyticsView(params?.vista)
+    ? params.vista
+    : "productos";
   const filters = {
     from: params?.from ?? "",
     to: params?.to ?? "",
@@ -334,6 +360,7 @@ export default async function ReportesHistoricosPage({
     familiaId: params?.familiaId ?? "",
     tipoProductoVentaId: params?.tipoProductoVentaId ?? "",
     filtroRapido: quickFilter,
+    linea: params?.linea ?? "all",
   };
   const reportFilters = {
     from: filters.from || undefined,
@@ -348,6 +375,14 @@ export default async function ReportesHistoricosPage({
       : undefined,
     quickFilter,
   };
+  const analyticsFilters = {
+    from: reportFilters.from,
+    to: reportFilters.to,
+    material: reportFilters.categoria,
+    line: filters.linea,
+    tipoProduccion: reportFilters.tipoProduccion,
+    productoId: reportFilters.productoId,
+  };
   const [
     allPeriods,
     data,
@@ -355,6 +390,10 @@ export default async function ReportesHistoricosPage({
     grossCategoryRows,
     grossProductReport,
     productChartsReport,
+    lineAnalytics,
+    materialAnalytics,
+    productionAnalytics,
+    lineOptions,
     productOptions,
     familyOptions,
     typeOptions,
@@ -365,6 +404,10 @@ export default async function ReportesHistoricosPage({
     buildGrossProfitCategoryReport(reportFilters),
     buildGrossProfitProductReport(reportFilters),
     buildProductChartsReport(reportFilters.productoId, reportFilters),
+    buildLineAnalytics(analyticsFilters),
+    buildMaterialAnalytics(analyticsFilters),
+    buildProductionAnalytics(analyticsFilters),
+    getHistoricalAnalyticsLineOptions(),
     prisma.producto.findMany({
       orderBy: { nombre: "asc" },
       include: { familia: true, tipoProductoVenta: true },
@@ -384,6 +427,7 @@ export default async function ReportesHistoricosPage({
       tab: selectedTab,
       nivel: grossProfitLevel,
       metrica: grossProfitMetric,
+      vista: analyticsView,
       ...overrides,
     };
 
@@ -583,32 +627,61 @@ export default async function ReportesHistoricosPage({
       )}
 
       {selectedTab === "graficos-producto" && (
+        <nav className="flex flex-wrap gap-2 rounded-lg border border-white/10 bg-neutral-900/75 p-2">
+          {analyticsViews.map((view) => (
+            <Link
+              key={view.value}
+              href={queryFor({ vista: view.value })}
+              className={`rounded-md px-4 py-2 text-sm font-semibold ${
+                analyticsView === view.value
+                  ? "bg-emerald-400 text-neutral-950"
+                  : "text-neutral-300 hover:bg-white/10"
+              }`}
+            >
+              {view.label}
+            </Link>
+          ))}
+        </nav>
+      )}
+
+      {selectedTab === "graficos-producto" && (
         <form className="grid gap-3 rounded-lg border border-white/10 bg-neutral-900/75 p-4 xl:grid-cols-[1.3fr_1.5fr_1fr_1fr_auto]">
           <input type="hidden" name="tab" value="graficos-producto" />
+          <input type="hidden" name="vista" value={analyticsView} />
           {filters.from && <input type="hidden" name="from" value={filters.from} />}
           {filters.to && <input type="hidden" name="to" value={filters.to} />}
-          {filters.tipoProduccion !== "all" && (
-            <input type="hidden" name="tipoProduccion" value={filters.tipoProduccion} />
+          {analyticsView === "productos" ? (
+            <select
+              name="productoId"
+              defaultValue={filters.productoId}
+              className="min-h-11 rounded-md border border-white/10 bg-neutral-950 px-3 text-sm text-white"
+            >
+              <option value="">Seleccionar producto</option>
+              {filteredProductOptions.map((producto) => (
+                <option key={producto.id} value={producto.id}>
+                  {producto.sku} - {producto.nombre}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <select
+              name="linea"
+              defaultValue={filters.linea}
+              className="min-h-11 rounded-md border border-white/10 bg-neutral-950 px-3 text-sm text-white"
+            >
+              <option value="all">Todas las líneas</option>
+              {lineOptions.map((line) => (
+                <option key={line} value={line}>
+                  {line}
+                </option>
+              ))}
+            </select>
           )}
-          {filters.categoria !== "all" && (
-            <input type="hidden" name="categoria" value={filters.categoria} />
-          )}
-          <select
-            name="productoId"
-            defaultValue={filters.productoId}
-            className="min-h-11 rounded-md border border-white/10 bg-neutral-950 px-3 text-sm text-white"
-          >
-            <option value="">Seleccionar producto</option>
-            {filteredProductOptions.map((producto) => (
-              <option key={producto.id} value={producto.id}>
-                {producto.sku} - {producto.nombre}
-              </option>
-            ))}
-          </select>
           <input
             name="q"
             placeholder="Buscar SKU o producto"
             defaultValue={filters.q}
+            disabled={analyticsView !== "productos"}
             className="min-h-11 rounded-md border border-white/10 bg-neutral-950 px-3 text-sm text-white placeholder:text-neutral-500"
           />
           <select
@@ -632,6 +705,26 @@ export default async function ReportesHistoricosPage({
             {typeOptions.map((tipo) => (
               <option key={tipo.id} value={tipo.id}>
                 {tipo.nombre}
+              </option>
+            ))}
+          </select>
+          <select
+            name="tipoProduccion"
+            defaultValue={filters.tipoProduccion}
+            className="min-h-11 rounded-md border border-white/10 bg-neutral-950 px-3 text-sm text-white"
+          >
+            <option value="all">Todos los orígenes</option>
+            <option value="Propio">Propio</option>
+            <option value="Externo">Externo</option>
+          </select>
+          <select
+            name="categoria"
+            defaultValue={filters.categoria}
+            className="min-h-11 rounded-md border border-white/10 bg-neutral-950 px-3 text-sm text-white"
+          >
+            {categoryOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
@@ -787,7 +880,13 @@ export default async function ReportesHistoricosPage({
           detail="Carga ventas mensuales reales para generar reportes historicos."
         />
       ) : selectedTab === "graficos-producto" ? (
-        <ProductChartsSection report={productChartsReport} />
+        <AnalyticsVisualSection
+          view={analyticsView}
+          productReport={productChartsReport}
+          lineReport={lineAnalytics}
+          materialReport={materialAnalytics}
+          productionReport={productionAnalytics}
+        />
       ) : selectedTab === "ganancia-bruta" ? (
         <GrossProfitSection
           level={grossProfitLevel}
@@ -1214,6 +1313,161 @@ function TableShell({
       <div className="max-h-[70vh] overflow-auto rounded-lg border border-white/10 bg-neutral-900/75">
         {children}
       </div>
+    </>
+  );
+}
+
+function AnalyticsVisualSection({
+  view,
+  productReport,
+  lineReport,
+  materialReport,
+  productionReport,
+}: {
+  view: AnalyticsView;
+  productReport: ProductChartsReport;
+  lineReport: HistoricalAnalyticsReport;
+  materialReport: HistoricalAnalyticsReport;
+  productionReport: HistoricalAnalyticsReport;
+}) {
+  if (view === "lineas") {
+    return (
+      <AggregatedAnalyticsSection
+        title="Gráficos por línea de producto"
+        report={lineReport}
+        filename="graficos-lineas.csv"
+        charts={<AnalyticsLinesCharts report={lineReport} />}
+      />
+    );
+  }
+
+  if (view === "materiales") {
+    return (
+      <AggregatedAnalyticsSection
+        title="Gráficos por material"
+        report={materialReport}
+        filename="graficos-materiales.csv"
+        charts={<AnalyticsMaterialsCharts report={materialReport} />}
+      />
+    );
+  }
+
+  if (view === "produccion") {
+    return (
+      <AggregatedAnalyticsSection
+        title="Gráficos por tipo de producción"
+        report={productionReport}
+        filename="graficos-produccion.csv"
+        charts={<AnalyticsProductionCharts report={productionReport} />}
+      />
+    );
+  }
+
+  return <ProductChartsSection report={productReport} />;
+}
+
+function AggregatedAnalyticsSection({
+  title,
+  report,
+  filename,
+  charts,
+}: {
+  title: string;
+  report: HistoricalAnalyticsReport;
+  filename: string;
+  charts: React.ReactNode;
+}) {
+  const exportRows = report.monthlySeries.map((point) => ({
+    Mes: point.label,
+    ...Object.fromEntries(
+      report.groups.flatMap((group) => {
+        const value = point.values[group.key];
+        return [
+          [`${group.label} Unidades`, numberFormat(value?.unidades ?? 0)],
+          [`${group.label} Ventas`, moneyFormat(value?.ventas ?? 0)],
+          [`${group.label} CMV`, moneyFormat(value?.cmv ?? 0)],
+          [`${group.label} Ganancia Bruta`, moneyFormat(value?.grossProfit ?? 0)],
+          [`${group.label} Margen %`, percentFormat(value?.grossMarginPct ?? null)],
+          [`${group.label} Markup %`, percentFormat(value?.markupPct ?? null)],
+          [`${group.label} Participación %`, percentFormat(value?.participationPct ?? null)],
+        ];
+      }),
+    ),
+  }));
+
+  if (report.monthlySeries.length === 0) {
+    return (
+      <EmptyState
+        title="Sin datos para analizar"
+        detail="Ajusta los filtros para ver información histórica agregada."
+      />
+    );
+  }
+
+  return (
+    <>
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <KpiCard label="Unidades" value={numberFormat(report.kpis.unidades)} />
+        <KpiCard label="Ventas" value={moneyFormat(report.kpis.ventas)} />
+        <KpiCard label="CMV" value={moneyFormat(report.kpis.cmv)} />
+        <KpiCard label="Ganancia bruta" value={moneyFormat(report.kpis.grossProfit)} />
+        <KpiCard label="Margen bruto %" value={percentFormat(report.kpis.grossMarginPct)} />
+        <KpiCard label="Markup %" value={percentFormat(report.kpis.markupPct)} />
+      </section>
+
+      <div className="flex flex-col gap-3 rounded-lg border border-white/10 bg-neutral-900/75 p-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-white">{title}</h2>
+          <p className="mt-1 text-sm text-neutral-400">
+            Datasets agregados server-side para análisis ejecutivo del negocio.
+          </p>
+        </div>
+        <ReportExportButtons filename={filename} rows={exportRows} />
+      </div>
+
+      {charts}
+
+      <TableShell
+        title="Ranking del período"
+        detail="Resumen agregado por grupo para el rango seleccionado."
+        filename={`ranking-${filename}`}
+        rows={report.rankings.map((row) => ({
+          Grupo: row.label,
+          Unidades: numberFormat(row.unidades),
+          Ventas: moneyFormat(row.ventas),
+          CMV: moneyFormat(row.cmv),
+          "Ganancia Bruta": moneyFormat(row.grossProfit),
+          "Margen %": percentFormat(row.grossMarginPct),
+          "Markup %": percentFormat(row.markupPct),
+          "Participación %": percentFormat(row.participationPct),
+        }))}
+      >
+        <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
+          <thead className="sticky top-0 z-20 bg-neutral-900 text-xs uppercase tracking-wide text-neutral-400">
+            <tr>
+              {["Grupo", "Unidades", "Ventas", "CMV", "Ganancia Bruta", "Margen %", "Markup %", "Participación %"].map((column, index) => (
+                <th key={column} className={`border-b border-white/10 px-4 py-3 ${index > 0 ? "text-right" : ""}`}>
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {report.rankings.map((row) => (
+              <tr key={row.key}>
+                <td className="border-b border-white/10 px-4 py-3 font-semibold text-white">{row.label}</td>
+                <td className="border-b border-white/10 px-4 py-3 text-right text-neutral-200">{numberFormat(row.unidades)}</td>
+                <td className="border-b border-white/10 px-4 py-3 text-right text-neutral-200">{moneyFormat(row.ventas)}</td>
+                <td className="border-b border-white/10 px-4 py-3 text-right text-neutral-200">{moneyFormat(row.cmv)}</td>
+                <td className={`border-b border-white/10 px-4 py-3 text-right font-semibold ${signedClass(row.grossProfit)}`}>{moneyFormat(row.grossProfit)}</td>
+                <td className={`border-b border-white/10 px-4 py-3 text-right ${signedClass(row.grossMarginPct)}`}>{percentFormat(row.grossMarginPct)}</td>
+                <td className={`border-b border-white/10 px-4 py-3 text-right ${signedClass(row.markupPct)}`}>{percentFormat(row.markupPct)}</td>
+                <td className="border-b border-white/10 px-4 py-3 text-right text-neutral-200">{percentFormat(row.participationPct)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableShell>
     </>
   );
 }

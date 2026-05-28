@@ -4,6 +4,7 @@ export const reportingMaterialKeys = [
   "bioplastico",
   "fibra",
   "kraft",
+  "pet",
   "servicios",
   "extras",
 ] as const;
@@ -16,6 +17,7 @@ export const reportingMaterialLabels: Record<ReportingMaterial, string> = {
   bioplastico: "Bioplástico",
   fibra: "Fibra",
   kraft: "Kraft",
+  pet: "PET",
   servicios: "Servicios",
   extras: "Extras",
 };
@@ -91,6 +93,12 @@ export function isKraft(producto: ReportingProductInput) {
   return text.includes("kraft") || text.includes("papel kraft");
 }
 
+export function isPet(producto: ReportingProductInput) {
+  const text = productText(producto);
+
+  return text.includes("pet") || text.includes("cristal");
+}
+
 export function isExtra(producto: ReportingProductInput) {
   return getReportingMaterial(producto) === "extras";
 }
@@ -102,6 +110,7 @@ export function getReportingMaterial(producto: ReportingProductInput): Reporting
   if (isBioplastico(producto)) return "bioplastico";
   if (isFibra(producto)) return "fibra";
   if (isKraft(producto)) return "kraft";
+  if (isPet(producto)) return "pet";
 
   return "extras";
 }
